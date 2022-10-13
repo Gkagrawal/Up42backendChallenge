@@ -1,9 +1,9 @@
 package com.up42.coding.challenge.services;
 
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -25,74 +25,104 @@ import com.up42.coding.challenge.utils.FeaturesUtil;
 @Service
 public class FeaturesService {
 
-    Logger logger = LoggerFactory.getLogger(FeaturesService.class);
+	Logger logger = LoggerFactory.getLogger(FeaturesService.class);
 
-    @Autowired
-    private FeaturesRepository featuresRepository;
+	@Autowired
+	private FeaturesRepository featuresRepository;
 
-    public List<FeatureResponse> getFeatures() throws IOException {
-        logger.info("Inside {} method of {}","getFeatures",this.getClass());
-        ObjectMapper objectMapper = new ObjectMapper();
-        List<FeatureCollection> featureCollectionList = objectMapper.readValue(new File(FeaturesConstants.SOURCE_DATA_FILE_PATH), new TypeReference<List<FeatureCollection>>(){});
-        List<PersistedFeature> persistedFeatureList = new ArrayList<>();
-        List<FeatureResponse> featureResponseList = new ArrayList<>();
-        populateFeatureData(featureCollectionList, persistedFeatureList, featureResponseList);
-        featuresRepository.saveToJson(persistedFeatureList);
-        return featureResponseList;
-    }
-    public byte[] getImage(String featureId) throws IOException {
-        logger.info("Inside {} method of {}","getImage",this.getClass());
-        String imageBase64 = "";
-        List<PersistedFeature> persistedFeatureList = featuresRepository.getPersistedFeatureList();
-        if(Objects.isNull(persistedFeatureList)) {
-            getFeatures();
-            persistedFeatureList = featuresRepository.getPersistedFeatureList();
-        }
+	public List<FeatureResponse> getFeatures() throws IOException {
+		logger.info("Inside {} method of {}", "getFeatures", this.getClass());
+		ObjectMapper objectMapper = new ObjectMapper();
+		List<FeatureCollection> featureCollectionList = objectMapper.readValue(
+				new File(FeaturesConstants.SOURCE_DATA_FILE_PATH), new TypeReference<List<FeatureCollection>>() {
+				});
+		HashMap<String,PersistedFeature> persistedFeatureMap = new HashMap<>();
+		List<FeatureResponse> featureResponseList = new ArrayList<>();
+		populateFeatureData(featureCollectionList, persistedFeatureMap, featureResponseList);
+		
+		//assuming source data is going to be same so we will write it to JSon file for first time.
+		if(Objects.isNull(featuresRepository.getPersistedFeatureMap()))
+		{
+			featuresRepository.persistData(persistedFeatureMap);
+		}
+		
+		return featureResponseList;
+	}
 
-        for (PersistedFeature persistedFeature: persistedFeatureList) {
-            if(persistedFeature.getId().equalsIgnoreCase(featureId)) {
-                imageBase64 = persistedFeature.getQuickLook();
-                break;
-            }
-        }
+	public byte[] getImage(String featureId) throws IOException {
+		logger.info("Inside {} method of {}", "getImage", this.getClass());
+		String imageBase64 = "";
+		HashMap<String, PersistedFeature> persistedFeatureMap = featuresRepository.getPersistedFeatureMap();
+		if (Objects.isNull(persistedFeatureMap)) {
+			getFeatures();
+			persistedFeatureMap = featuresRepository.getPersistedFeatureMap();
+		}
 
-        if(!imageBase64.equalsIgnoreCase("")) {
-            byte [] image = FeaturesUtil.convertBase64ToByteArray(imageBase64);
-            return image;
-        }
+		if(persistedFeatureMap.containsKey(featureId))
+		{
+			imageBase64 = persistedFeatureMap.get(featureId).getQuickLook();
+			
+		}
 
-        return null;
-    }
+		if (imageBase64!=null && !imageBase64.equalsIgnoreCase("")) {
+			byte[] image = FeaturesUtil.convertBase64ToByteArray(imageBase64);
+			return image;
+		}
 
-    private void populateFeatureData(List<FeatureCollection> featureCollectionList, List<PersistedFeature> persistedFeatureList, List<FeatureResponse> featureResponseList) {
-        for(FeatureCollection featureCollection: featureCollectionList) {
-            for (Feature feature: featureCollection.getFeatures()) {
-                FeatureResponse featureResponse = getFeatureResponse(feature);
-                PersistedFeature persistedFeature = getPersistedFeature(feature);
-                featureResponseList.add(featureResponse);
-                persistedFeatureList.add(persistedFeature);
-            }
-        }
-    }
+		return null;
+	}
 
-    private FeatureResponse getFeatureResponse(Feature feature) {
-        FeatureResponse featureResponse = new FeatureResponse();
-        featureResponse.setId(feature.getProperties().getId());
-        featureResponse.setTimestamp(feature.getProperties().getTimestamp());
-        featureResponse.setBeginViewingDate(feature.getProperties().getAcquisition().getBeginViewingDate());
-        featureResponse.setEndViewingDate(feature.getProperties().getAcquisition().getEndViewingDate());
-        featureResponse.setMissionName(feature.getProperties().getAcquisition().getMissionName());
-        return featureResponse;
-    }
+	private void populateFeatureData(List<FeatureCollection> featureCollectionList,
+			HashMap<String, PersistedFeature> persistedFeatureList, List<FeatureResponse> featureResponseList) {
+		for (FeatureCollection featureCollection : featureCollectionList) {
+			for (Feature feature : featureCollection.getFeatures()) {
+				FeatureResponse featureResponse = getFeatureResponse(feature);
+				PersistedFeature persistedFeature = getPersistedFeature(feature);
+				featureResponseList.add(featureResponse);
+				persistedFeatureList.put(persistedFeature.getId(),persistedFeature);
+			}
+		}
+	}
 
-    private PersistedFeature getPersistedFeature(Feature feature) {
-        PersistedFeature persistedFeature = new PersistedFeature();
-        persistedFeature.setId(feature.getProperties().getId());
-        persistedFeature.setTimestamp(feature.getProperties().getTimestamp());
-        persistedFeature.setBeginViewingDate(feature.getProperties().getAcquisition().getBeginViewingDate());
-        persistedFeature.setEndViewingDate(feature.getProperties().getAcquisition().getEndViewingDate());
-        persistedFeature.setMissionName(feature.getProperties().getAcquisition().getMissionName());
-        persistedFeature.setQuickLook(feature.getProperties().getQuicklook());
-        return persistedFeature;
-    }
+	private FeatureResponse getFeatureResponse(Feature feature) {
+		FeatureResponse featureResponse = new FeatureResponse();
+		setFeatureValue(feature, featureResponse);
+
+		return featureResponse;
+	}
+
+	private void setFeatureValue(Feature feature, FeatureResponse featureResponse) {
+		if (feature.getProperties() != null) {
+			featureResponse.setId(feature.getProperties().getId());
+			featureResponse.setTimestamp(feature.getProperties().getTimestamp());
+			if (feature.getProperties().getAcquisition() != null) {
+				featureResponse.setBeginViewingDate(feature.getProperties().getAcquisition().getBeginViewingDate());
+				featureResponse.setEndViewingDate(feature.getProperties().getAcquisition().getEndViewingDate());
+				featureResponse.setMissionName(feature.getProperties().getAcquisition().getMissionName());
+			}
+
+		}
+	}
+
+	private PersistedFeature getPersistedFeature(Feature feature) {
+		PersistedFeature persistedFeature = new PersistedFeature();
+		setPerssistedFeatureValue(feature, persistedFeature);
+
+		return persistedFeature;
+	}
+
+	private void setPerssistedFeatureValue(Feature feature, PersistedFeature persistedFeature) {
+		if (feature.getProperties() != null) {
+			persistedFeature.setId(feature.getProperties().getId());
+			persistedFeature.setTimestamp(feature.getProperties().getTimestamp());
+			if (feature.getProperties().getAcquisition() != null) {
+				persistedFeature.setBeginViewingDate(feature.getProperties().getAcquisition().getBeginViewingDate());
+				persistedFeature.setEndViewingDate(feature.getProperties().getAcquisition().getEndViewingDate());
+				persistedFeature.setMissionName(feature.getProperties().getAcquisition().getMissionName());
+			}
+
+			persistedFeature.setQuickLook(feature.getProperties().getQuicklook());
+
+		}
+	}
 }

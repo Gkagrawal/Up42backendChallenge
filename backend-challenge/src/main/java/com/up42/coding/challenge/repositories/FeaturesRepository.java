@@ -3,7 +3,7 @@ package com.up42.coding.challenge.repositories;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
+import java.util.HashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,11 +19,11 @@ public class FeaturesRepository {
 
     Logger logger = LoggerFactory.getLogger(FeaturesRepository.class);
 
-    public boolean saveToJson(List<PersistedFeature> persistedFeatureList) throws IOException {
+    public boolean persistData(HashMap<String, PersistedFeature> persistedFeatureMap) throws IOException {
         logger.info("Inside {} method of {}","persistedFeatureList",this.getClass());
         ObjectMapper objectMapper = new ObjectMapper();
         try {
-            objectMapper.writeValue(new File(FeaturesConstants.PERSISTED_DATA_FILE_PATH), persistedFeatureList);
+            objectMapper.writeValue(new File(FeaturesConstants.PERSISTED_DATA_FILE_PATH), persistedFeatureMap);
         }
         catch (IOException e){
             logger.error("Feature list could not be persisted : " + e.getMessage());
@@ -32,17 +32,16 @@ public class FeaturesRepository {
         return true;
     }
 
-    public List<PersistedFeature> getPersistedFeatureList() throws IOException {
+    public HashMap<String, PersistedFeature> getPersistedFeatureMap() {
         logger.info("Inside {} method of {}","getPersistedFeatureList",this.getClass());
         ObjectMapper objectMapper = new ObjectMapper();
-        List<PersistedFeature> persistedFeatureList = null;
+        HashMap<String, PersistedFeature> persistedFeatureMap = null;
         try {
-            persistedFeatureList = objectMapper.readValue(new File(FeaturesConstants.PERSISTED_DATA_FILE_PATH), new TypeReference<List<PersistedFeature>>(){});
+        	persistedFeatureMap = objectMapper.readValue(new File(FeaturesConstants.PERSISTED_DATA_FILE_PATH), new TypeReference<HashMap<String, PersistedFeature>>(){});
         }
         catch (IOException e) {
             logger.error("Error in reading the persisted file : " + e.getMessage());
-            throw e;
         }
-        return persistedFeatureList;
+        return persistedFeatureMap;
     }
 }

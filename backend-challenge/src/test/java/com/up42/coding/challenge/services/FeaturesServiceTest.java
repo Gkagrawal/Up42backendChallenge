@@ -1,10 +1,10 @@
 package com.up42.coding.challenge.services;
 
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.assertj.core.api.Assertions;
@@ -35,33 +35,49 @@ class FeaturesServiceTest {
 
 	@Test
 	void getFeatures() throws IOException {
-		doReturn(true).when(featuresRepository).saveToJson(anyList());
+		doReturn(true).when(featuresRepository).persistData(any());
 		List<FeatureResponse> featuresList = featuresService.getFeatures();
 		Assertions.assertThat(featuresList).isNotNull();
 	}
 
 	@Test
 	void getImagePositiveTestCase() throws IOException {
-		List<PersistedFeature> persistedFeatureList = dataProvider("Dummy Id");
-		doReturn(persistedFeatureList).when(featuresRepository).getPersistedFeatureList();
+		HashMap<String,PersistedFeature> persistedFeatureMap = dataProvider("Dummy Id");
+		doReturn(persistedFeatureMap).when(featuresRepository).getPersistedFeatureMap();
 		byte[] byteImage = featuresService.getImage("Dummy Id");
 		Assertions.assertThat(byteImage).isNotNull();
 	}
 
 	@Test
 	void getImageNegativeTestCase() throws IOException {
-		List<PersistedFeature> persistedFeatureList = dataProvider("Dummy Id");
-		doReturn(persistedFeatureList).when(featuresRepository).getPersistedFeatureList();
+		HashMap<String,PersistedFeature> persistedFeatureMap = dataProvider("Dummy Id");
+		doReturn(persistedFeatureMap).when(featuresRepository).getPersistedFeatureMap();
 		byte[] byteImage = featuresService.getImage("Wrong Dummy Id");
 		Assertions.assertThat(byteImage).isNull();
 	}
+	
+	@Test
+	void getImageNegativeTestCaseWithNull() throws IOException {
+		HashMap<String,PersistedFeature> persistedFeatureMap = nulldataProvider("Dummy Id");
+		doReturn(persistedFeatureMap).when(featuresRepository).getPersistedFeatureMap();
+		byte[] byteImage = featuresService.getImage("Dummy Id");
+		Assertions.assertThat(byteImage).isNull();
+	}
 
-	private List<PersistedFeature> dataProvider(String featureId) {
-		List<PersistedFeature> persistedFeatureList = new ArrayList<>();
+	private HashMap<String,PersistedFeature> dataProvider(String featureId) {
+		HashMap<String,PersistedFeature> persistedFeatureMap = new HashMap<>();
 		PersistedFeature feature = new PersistedFeature();
 		feature.setId(featureId);
 		feature.setQuickLook("xyz");
-		persistedFeatureList.add(feature);
-		return persistedFeatureList;
+		persistedFeatureMap.put(featureId,feature);
+		return persistedFeatureMap;
+	}
+	private HashMap<String,PersistedFeature> nulldataProvider(String featureId) {
+		HashMap<String,PersistedFeature> persistedFeatureMap = new HashMap<>();
+		PersistedFeature feature = new PersistedFeature();
+		feature.setId(featureId);
+		feature.setQuickLook(null);
+		persistedFeatureMap.put(featureId,feature);
+		return persistedFeatureMap;
 	}
 }

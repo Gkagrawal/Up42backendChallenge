@@ -17,10 +17,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.up42.coding.challenge.constants.FeaturesConstants;
 import com.up42.coding.challenge.model.responseModel.FeatureResponse;
-import com.up42.coding.challenge.repositories.FeaturesRepository;
 import com.up42.coding.challenge.services.FeaturesService;
 
 @RestController
@@ -29,16 +29,21 @@ public class FeaturesController {
     Logger logger = LoggerFactory.getLogger(FeaturesController.class);
 
     @Autowired
-    private FeaturesRepository repository;
-
-    @Autowired
     private FeaturesService featuresService;
 
     @GetMapping("/features")
     public List<FeatureResponse> getFeatures() throws IOException {
         logger.info("Inside {} method of {}","getFeatures",this.getClass());
         List<FeatureResponse> featureResponseList = featuresService.getFeatures();
-        return featureResponseList;
+        if(!featureResponseList.isEmpty())
+        {
+        	return featureResponseList;
+        }
+        else
+        {
+        	throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, FeaturesConstants.GET_FEATURE_ERR_MSG);
+        }
+        
     }
 
     @GetMapping("/features/{featureId}/quicklook")
